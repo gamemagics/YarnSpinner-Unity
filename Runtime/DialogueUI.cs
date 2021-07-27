@@ -287,18 +287,68 @@ namespace Yarn.Unity {
 
             if (textSpeed > 0.0f) {
                 // Display the line one character at a time
-                var stringBuilder = new StringBuilder ();
+                var stringBuilder = new StringBuilder("", text.Length);
+                string colorLabel = "";
 
-                foreach (char c in text) {
-                    stringBuilder.Append (c);
-                    onLineUpdate?.Invoke(stringBuilder.ToString ());
-                    if (userRequestedNextLine) {
-                        // We've requested a skip of the entire line.
-                        // Display all of the text immediately.
-                        onLineUpdate?.Invoke(text);
-                        break;
+                for (int i = 0; i < text.Length; ++i) {
+                    char c = text[i];
+
+                    if (c == '<' && i + 16 < text.Length) {
+                        string temp1 = text.Substring(i, 6);
+                        string temp2 = text.Substring(i, 17);
+                        if (temp1 == "<color" && temp2[16] == '>') {
+                            int endpoint = text.IndexOf("</color>", i + 17);
+                            if (endpoint > -1) {
+                                stringBuilder.Append(temp2);
+
+                                for (int j = i + 17; j < endpoint; ++j) {
+                                    char c2 = text[j];
+
+                                    stringBuilder.Append (c2);
+                                    colorLabel = stringBuilder.ToString();
+                                    stringBuilder.Append("</color>");
+                                    onLineUpdate?.Invoke(stringBuilder.ToString());
+                                    stringBuilder = new StringBuilder(colorLabel, text.Length);
+                                    if (userRequestedNextLine) {
+                                        onLineUpdate?.Invoke(text);
+                                        break;
+                                    }
+                                    yield return new WaitForSeconds (textSpeed);
+                                }
+
+                                if (userRequestedNextLine) {
+                                    break;
+                                }
+                                else {
+                                    stringBuilder.Append("</color>");
+                                    i = endpoint + 7;
+                                    continue;
+                                }
+                            }
+                            else {
+                                stringBuilder.Append (c);
+                                onLineUpdate?.Invoke(stringBuilder.ToString ());
+                                if (userRequestedNextLine) {
+                                    // We've requested a skip of the entire line.
+                                    // Display all of the text immediately.
+                                    onLineUpdate?.Invoke(text);
+                                    break;
+                                }
+                                yield return new WaitForSeconds (textSpeed);   
+                            }
+                        }
                     }
-                    yield return new WaitForSeconds (textSpeed);
+                    else {
+                        stringBuilder.Append (c);
+                        onLineUpdate?.Invoke(stringBuilder.ToString ());
+                        if (userRequestedNextLine) {
+                            // We've requested a skip of the entire line.
+                            // Display all of the text immediately.
+                            onLineUpdate?.Invoke(text);
+                            break;
+                        }
+                        yield return new WaitForSeconds (textSpeed);
+                    }
                 }
             } else {
                 // Display the entire line immediately if textSpeed <= 0
